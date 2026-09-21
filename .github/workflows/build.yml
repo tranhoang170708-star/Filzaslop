@@ -30,15 +30,29 @@ jobs:
           echo "Using SDK: $SDK"
           echo "SYSROOT=$SDK" >> $GITHUB_ENV
 
-      - name: Debug THEOS
+      - name: Diagnose Theos layout
         run: |
-          echo "THEOS=$THEOS"
-          echo "--- theos dir ---"
-          ls -la $THEOS/ | head -20
-          echo "--- makefiles ---"
-          ls -la $THEOS/makefiles/ | head -20
-          echo "--- common.mk exists? ---"
-          test -f $THEOS/makefiles/common.mk && echo "YES" || echo "NO"
+          echo "=== THEOS: $THEOS ==="
+          echo "=== makefiles/master/ ==="
+          ls -la $THEOS/makefiles/master/
+          echo "=== top-level tweak.mk exists? ==="
+          test -f $THEOS/makefiles/tweak.mk && echo "YES" || echo "NO"
+          echo "=== master/tweak.mk exists? ==="
+          test -f $THEOS/makefiles/master/tweak.mk && echo "YES" || echo "NO"
+          echo "=== shim content: library.mk ==="
+          cat $THEOS/makefiles/library.mk
+          echo "=== Makefile include lines ==="
+          grep -n "include" Makefile
+
+      - name: Patch Makefile for new Theos layout
+        run: |
+          if [ -f "$THEOS/makefiles/master/tweak.mk" ] && [ ! -f "$THEOS/makefiles/tweak.mk" ]; then
+            echo "Patching Makefile: tweak.mk -> master/tweak.mk"
+            sed -i '' 's|$(THEOS_MAKE_PATH)/tweak.mk|$(THEOS_MAKE_PATH)/master/tweak.mk|' Makefile
+            grep -n "include" Makefile
+          else
+            echo "No patch needed (tweak.mk exists at top level, or master version missing)"
+          fi
 
       - name: Build tweak
         run: |
