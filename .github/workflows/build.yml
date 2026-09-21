@@ -5,15 +5,20 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install Theos
+      - name: Install Theos + tools
         run: |
-          brew install ldid xz
+          brew install ldid xz dpkg make
           git clone --recursive https://github.com/theos/theos.git $HOME/theos
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
@@ -21,10 +26,15 @@ jobs:
       - name: Install iOS SDK
         run: |
           git clone --depth 1 https://github.com/theos/sdks.git $HOME/sdks
-          echo "SYSROOT=$HOME/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
+          ls $HOME/sdks
+          SDK=$(ls -d $HOME/sdks/iPhoneOS*.sdk | sort -V | tail -1)
+          echo "Using SDK: $SDK"
+          echo "SYSROOT=$SDK" >> $GITHUB_ENV
 
       - name: Build tweak
-        run: make package FINALPACKAGE=1
+        run: |
+          make clean || true
+          make package FINALPACKAGE=1
 
       - name: Collect dylibs
         run: |
